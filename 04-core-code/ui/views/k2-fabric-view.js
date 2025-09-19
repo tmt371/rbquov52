@@ -153,10 +153,12 @@ export class K2FabricView {
         if (activeEditMode === 'K2_LF_DELETE_SELECT') {
             const { lfSelectedRowIndexes } = this.uiService.getState();
             if (lfSelectedRowIndexes.size > 0) {
+                // Perform actions FIRST
                 this.quoteService.removeLFProperties(lfSelectedRowIndexes);
                 this.uiService.removeLFModifiedRows(lfSelectedRowIndexes);
                 this.eventAggregator.publish('showNotification', { message: 'Light-Filter settings have been cleared.' });
             }
+            // THEN, clean up all states
             this._exitAllK2Modes();
         } else {
             this.uiService.setActiveEditMode('K2_LF_DELETE_SELECT');
