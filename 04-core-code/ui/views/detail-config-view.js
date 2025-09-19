@@ -12,7 +12,8 @@ export class DetailConfigView {
         publishStateChangeCallback,
         // Sub-views are injected here
         k1LocationView,
-        k2FabricView
+        k2FabricView,
+        k3OptionsView
     }) {
         this.quoteService = quoteService;
         this.uiService = uiService;
@@ -23,7 +24,8 @@ export class DetailConfigView {
         // Store instances of sub-views
         this.k1View = k1LocationView;
         this.k2View = k2FabricView;
-        // Future sub-views (k3, k4) will be added here
+        this.k3View = k3OptionsView;
+        // Future sub-views (k4) will be added here
 
         this.eventAggregator.subscribe('k4ModeChanged', (data) => this.handleK4ModeChange(data));
         
@@ -44,7 +46,10 @@ export class DetailConfigView {
             case 'k2-tab':
                 this.k2View.activate();
                 break;
-            // Future cases for k3, k4, k5 will be added here
+            case 'k3-tab':
+                this.k3View.activate();
+                break;
+            // Future cases for k4, k5 will be added here
             default:
                 // Fallback for tabs not yet refactored
                 break;
@@ -77,11 +82,6 @@ export class DetailConfigView {
     handleSequenceCellClick({ rowIndex }) {
         const { activeEditMode } = this.uiService.getState();
 
-        if (activeEditMode === 'K1') {
-            // This is handled by handleTableCellClick for K1
-            return;
-        }
-
         if (activeEditMode === 'K2_LF_SELECT' || activeEditMode === 'K2_LF_DELETE_SELECT') {
             this.k2View.handleSequenceCellClick({ rowIndex });
         }
@@ -95,6 +95,14 @@ export class DetailConfigView {
         this.k2View.handleLFDeleteRequest();
     }
     
+    handleToggleK3EditMode() {
+        this.k3View.handleToggleK3EditMode();
+    }
+
+    handleBatchCycle({ column }) {
+        this.k3View.handleBatchCycle({ column });
+    }
+
     handleTableCellClick({ rowIndex, column }) {
         const { activeEditMode, k4ActiveMode } = this.uiService.getState();
         
@@ -102,21 +110,14 @@ export class DetailConfigView {
             this.k1View.handleTableCellClick({ rowIndex });
             return;
         }
+        
+        if (activeEditMode === 'K3') {
+            this.k3View.handleTableCellClick({ rowIndex, column });
+            return;
+        }
 
         const item = this.quoteService.getItems()[rowIndex];
         if (!item) return;
-
-        // Logic for K3 (to be refactored)
-        if (activeEditMode === 'K3' && ['over', 'oi', 'lr'].includes(column)) {
-            this.uiService.setActiveCell(rowIndex, column);
-            this.quoteService.cycleK3Property(rowIndex, column);
-            this.publish();
-            
-            setTimeout(() => {
-                this.uiService.setActiveCell(null, null);
-                this.publish();
-            }, 150);
-        }
 
         // Logic for K4 (to be refactored)
         if (k4ActiveMode === 'dual' && column === 'dual') {
@@ -141,14 +142,6 @@ export class DetailConfigView {
     }
 
     // --- Methods below this line will eventually be moved to their respective sub-views ---
-    
-    handleToggleK3EditMode() {
-        // To be moved to k3-view
-    }
-
-    handleBatchCycle({ column }) {
-        // To be moved to k3-view
-    }
 
     initializePanelState() {
         // This might become a delegator to the active tab's view
