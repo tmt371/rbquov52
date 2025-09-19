@@ -1,91 +1,62 @@
 // File: 04-core-code/ui/views/detail-config-view.js
 
 /**
- * @fileoverview View module responsible for all logic related to the Detail Configuration screen.
+ * @fileoverview A "Manager" view that delegates logic to specific sub-views for each tab.
  */
 export class DetailConfigView {
-    constructor({ quoteService, uiService, calculationService, eventAggregator, publishStateChangeCallback }) {
+    constructor({ 
+        quoteService, 
+        uiService, 
+        calculationService, 
+        eventAggregator, 
+        publishStateChangeCallback,
+        // Sub-views are injected here
+        k1LocationView 
+    }) {
         this.quoteService = quoteService;
         this.uiService = uiService;
         this.calculationService = calculationService;
         this.eventAggregator = eventAggregator;
         this.publish = publishStateChangeCallback;
 
+        // Store instances of sub-views
+        this.k1View = k1LocationView;
+        // Future sub-views (k2, k3, k4) will be added here
+
         this.eventAggregator.subscribe('k4ModeChanged', (data) => this.handleK4ModeChange(data));
-        this.eventAggregator.subscribe('k4ChainEnterPressed', (data) => this.handleK4ChainEnterPressed(data));
-        console.log("DetailConfigView Initialized (Pure Logic View).");
-    }
-
-    handleK4ModeChange({ mode }) {
-        const currentMode = this.uiService.getState().k4ActiveMode;
-
-        // --- Validation Logic on Mode Deactivation ---
-        if (currentMode === 'dual') {
-            const items = this.quoteService.getItems();
-            const dualCount = items.filter(item => item.dual === 'D').length;
-            if (dualCount % 2 !== 0) {
-                this.eventAggregator.publish('showNotification', {
-                    message: '雙層支架(D)的總數必須為偶數，請修正後再退出。',
-                    type: 'error'
-                });
-                return; // Prevent exiting the mode
-            }
-            // --- Pricing Logic on Mode Deactivation ---
-            const price = this.calculationService.calculateDualPrice(items);
-            this.uiService.setK4DualPrice(price);
-        }
-
-        // --- Toggle Mode ---
-        const newMode = currentMode === mode ? null : mode;
-        this.uiService.setK4ActiveMode(newMode);
-
-        // --- Clear Prices when Entering a Mode ---
-        if (newMode === 'dual') {
-            this.uiService.setK4DualPrice(null);
-        }
+        // The subscription for 'k4ChainEnterPressed' is removed as it will be handled by the future K4 sub-view
+        // The subscription for 'numericKeyPressed' is also removed for the same reason
         
-        // When exiting any K4 mode, clear the target cell and input value
-        if (!newMode) {
-            this.uiService.setTargetCell(null);
-            this.uiService.clearChainInputValue();
-        }
-
-        this.publish();
+        console.log("DetailConfigView Refactored as a Manager View.");
     }
 
-    handleK4ChainEnterPressed({ value }) {
-        const { targetCell: currentTarget } = this.uiService.getState();
-        if (!currentTarget) return;
+    // --- Event Handlers that need to delegate to sub-views ---
 
-        // --- Validation Logic ---
-        const valueAsNumber = Number(value);
-        if (value !== '' && (!Number.isInteger(valueAsNumber) || valueAsNumber <= 0)) {
-            this.eventAggregator.publish('showNotification', {
-                message: '僅能輸入正整數。',
-                type: 'error'
-            });
-            // Do not clear the input, let the user fix it
-            return;
+    /**
+     * Activates the logic for a specific tab. Called by AppController.
+     * @param {string} tabId The ID of the tab to activate (e.g., 'k1-tab').
+     */
+    activateTab(tabId) {
+        switch (tabId) {
+            case 'k1-tab':
+                this.k1View.activate();
+                break;
+            // Future cases for k2, k3, k4, k5 will be added here
+            default:
+                // Fallback for tabs not yet refactored
+                break;
         }
-
-        const valueToSave = value === '' ? null : valueAsNumber;
-        this.quoteService.updateItemProperty(currentTarget.rowIndex, currentTarget.column, valueToSave);
-        
-        // Clear state after submission to exit editing for that cell
-        this.uiService.setTargetCell(null);
-        this.uiService.clearChainInputValue();
-        this.publish();
     }
-
+    
     handleFocusModeRequest({ column }) {
-        const currentMode = this.uiService.getState().activeEditMode;
-
+        // Delegate to the appropriate sub-view based on the column
         if (column === 'location') {
-            const newMode = currentMode === 'K1' ? null : 'K1';
-            this._toggleLocationEditMode(newMode);
+            this.k1View.handleFocusModeRequest();
             return;
         }
 
+        // Logic for K2 (to be refactored)
+        const currentMode = this.uiService.getState().activeEditMode;
         if (column === 'fabric') {
             const newMode = currentMode === 'K2' ? null : 'K2';
 
@@ -115,149 +86,24 @@ export class DetailConfigView {
         } 
     }
     
-    _enterFCMode(isOverwriting) {
-        if (isOverwriting) {
-            const items = this.quoteService.getItems();
-            const { lfModifiedRowIndexes } = this.uiService.getState();
-            const indexesToClear = new Set();
-            items.forEach((item, index) => {
-                if (item.fabricType === 'BO1' && lfModifiedRowIndexes.has(index)) {
-                    indexesToClear.add(index);
-                }
-            });
-            if (indexesToClear.size > 0) {
-                this.uiService.removeLFModifiedRows(indexesToClear);
-            }
-        }
-        this.uiService.setActiveEditMode('K2');
-        this.uiService.setVisibleColumns(['sequence', 'fabricTypeDisplay', 'fabric', 'color']);
-        this._updatePanelInputsState(); 
-        this.uiService.setActiveCell(null, null);
-        this.publish();
+    handleLocationInputEnter({ value }) {
+        // This event is specific to K1, so we delegate it directly.
+        this.k1View.handleLocationInputEnter({ value });
     }
     
-    _toggleLocationEditMode(newMode) {
-        this.uiService.setActiveEditMode(newMode);
-
-        if (newMode) {
-            this.uiService.setVisibleColumns(['sequence', 'fabricTypeDisplay', 'location']);
-            const targetRow = 0;
-            this.uiService.setTargetCell({ rowIndex: targetRow, column: 'location' });
-            
-            const currentItem = this.quoteService.getItems()[targetRow];
-            this.uiService.setLocationInputValue(currentItem.location || '');
-            
-            const locationInput = document.getElementById('location-input-box');
-            setTimeout(() => {
-                locationInput?.focus();
-                locationInput?.select();
-            }, 0);
-        } else {
-            this.uiService.setTargetCell(null);
-            this.uiService.setLocationInputValue('');
-        }
-        this.publish();
-    }
-
-    handleLocationInputEnter({ value }) {
-        const { targetCell } = this.uiService.getState();
-        if (!targetCell) return;
-
-        this.quoteService.updateItemProperty(targetCell.rowIndex, targetCell.column, value);
-
-        const nextRowIndex = targetCell.rowIndex + 1;
-        const totalRows = this.quoteService.getItems().length;
-        const locationInput = document.getElementById('location-input-box');
-
-        if (nextRowIndex < totalRows - 1) {
-            this.uiService.setTargetCell({ rowIndex: nextRowIndex, column: 'location' });
-            const nextItem = this.quoteService.getItems()[nextRowIndex];
-            this.uiService.setLocationInputValue(nextItem.location || '');
-            this.publish();
-            setTimeout(() => locationInput?.select(), 0);
-        } else {
-            this._toggleLocationEditMode(null);
-        }
-    }
-
-    handlePanelInputBlur({ type, field, value }) {
-        const { lfSelectedRowIndexes } = this.uiService.getState();
-        
-        if (type === 'LF') {
-            const fNameInput = document.querySelector('input[data-type="LF"][data-field="fabric"]');
-            const fColorInput = document.querySelector('input[data-type="LF"][data-field="color"]');
-            
-            if (fNameInput && fColorInput && fNameInput.value && fColorInput.value) {
-                this.quoteService.batchUpdateLFProperties(lfSelectedRowIndexes, fNameInput.value, fColorInput.value);
-                this.uiService.addLFModifiedRows(lfSelectedRowIndexes);
-            }
-        } else {
-            this.quoteService.batchUpdatePropertyByType(type, field, value);
-        }
-        
-        this.publish();
-    }
-
-    handlePanelInputEnter() {
-        const inputs = Array.from(document.querySelectorAll('.panel-input:not([disabled])'));
-        const activeElement = document.activeElement;
-        const currentIndex = inputs.indexOf(activeElement);
-        const nextInput = inputs[currentIndex + 1];
-
-        if (nextInput) {
-            nextInput.focus();
-            nextInput.select();
-        } else {
-            activeElement.blur();
-            this.uiService.setActiveEditMode(null);
-            this._updatePanelInputsState();
-            this.publish();
-        }
-    }
-
-    handleSequenceCellClick({ rowIndex }) {
-        const { activeEditMode } = this.uiService.getState();
-
-        if (activeEditMode === 'K2_LF_SELECT' || activeEditMode === 'K2_LF_DELETE_SELECT') {
-            const item = this.quoteService.getItems()[rowIndex];
-            
-            if (activeEditMode === 'K2_LF_DELETE_SELECT') {
-                const { lfModifiedRowIndexes } = this.uiService.getState();
-                if (!lfModifiedRowIndexes.has(rowIndex)) {
-                    this.eventAggregator.publish('showNotification', { message: 'Only items with a Light-Filter setting (pink background) can be selected for deletion.', type: 'error' });
-                    return;
-                }
-            }
-
-            if (activeEditMode === 'K2_LF_SELECT' && item.fabricType !== 'BO1') {
-                this.eventAggregator.publish('showNotification', { message: 'Only items with TYPE "BO1" can be selected.', type: 'error' });
-                return;
-            }
-            this.uiService.toggleLFSelection(rowIndex);
-            
-            if (activeEditMode === 'K2_LF_SELECT') {
-                this._updatePanelInputsState();
-            }
-        } else if (activeEditMode === 'K1') {
-            this.uiService.setTargetCell({ rowIndex, column: 'location' });
-            const item = this.quoteService.getItems()[rowIndex];
-            this.uiService.setLocationInputValue(item.location || '');
-            
-            const locationInput = document.getElementById('location-input-box');
-            setTimeout(() => {
-                locationInput?.focus();
-                locationInput?.select();
-            }, 0);
-        }
-        this.publish();
-    }
-
     handleTableCellClick({ rowIndex, column }) {
         const { activeEditMode, k4ActiveMode } = this.uiService.getState();
+        
+        // Delegate to K1 sub-view if K1 mode is active
+        if (activeEditMode === 'K1') {
+            this.k1View.handleTableCellClick({ rowIndex });
+            return;
+        }
+
         const item = this.quoteService.getItems()[rowIndex];
         if (!item) return;
 
-        // K3 Mode Logic
+        // Logic for K3 (to be refactored)
         if (activeEditMode === 'K3' && ['over', 'oi', 'lr'].includes(column)) {
             this.uiService.setActiveCell(rowIndex, column);
             this.quoteService.cycleK3Property(rowIndex, column);
@@ -269,7 +115,7 @@ export class DetailConfigView {
             }, 150);
         }
 
-        // K4 Mode Logic
+        // Logic for K4 (to be refactored)
         if (k4ActiveMode === 'dual' && column === 'dual') {
             const newValue = item.dual === 'D' ? '' : 'D';
             this.quoteService.updateItemProperty(rowIndex, 'dual', newValue);
@@ -277,139 +123,61 @@ export class DetailConfigView {
         }
 
         if (k4ActiveMode === 'chain' && column === 'chain') {
-            this.uiService.setTargetCell({ rowIndex, column: 'chain' });
-            this.uiService.setChainInputValue(item.chain || '');
-            this.publish();
-
-            // Use setTimeout to ensure the element is enabled and visible before focusing
-            setTimeout(() => {
-                const inputBox = document.getElementById('k4-input-display');
-                inputBox?.focus();
-                inputBox?.select();
-            }, 50); 
+            // Logic to be moved to k4-view
         }
     }
+    
+    // --- Logic to be refactored and moved to respective sub-views ---
+    
+    handleK4ModeChange({ mode }) {
+        // This will be moved to k4-view
+    }
 
+    handleK4ChainEnterPressed({ value }) {
+        // This will be moved to k4-view
+    }
+
+    // --- Methods below this line will eventually be moved to their respective sub-views ---
+
+    _enterFCMode(isOverwriting) {
+        // To be moved to k2-view
+    }
+
+    handlePanelInputBlur({ type, field, value }) {
+        // To be moved to k2-view
+    }
+
+    handlePanelInputEnter() {
+        // To be moved to k2-view
+    }
+
+    handleSequenceCellClick({ rowIndex }) {
+        // To be moved to k2-view
+    }
+    
     handleLFEditRequest() {
-        const { activeEditMode } = this.uiService.getState();
-        
-        if (activeEditMode === 'K2_LF_SELECT') {
-            this.uiService.setActiveEditMode(null);
-            this.uiService.clearLFSelection();
-            this._updatePanelInputsState();
-        } else {
-            this.uiService.setActiveEditMode('K2_LF_SELECT');
-            this.uiService.setVisibleColumns(['sequence', 'fabricTypeDisplay', 'fabric', 'color']);
-            this.eventAggregator.publish('showNotification', { message: 'Please select the items with TYPE \'BO1\' to edit the fabric name and color settings for the roller blinds.' });
-        }
-        this.publish();
+        // To be moved to k2-view
     }
 
     handleLFDeleteRequest() {
-        const { activeEditMode } = this.uiService.getState();
-        
-        if (activeEditMode === 'K2_LF_DELETE_SELECT') {
-            const { lfSelectedRowIndexes } = this.uiService.getState();
-            if (lfSelectedRowIndexes.size > 0) {
-                this.quoteService.removeLFProperties(lfSelectedRowIndexes);
-                this.uiService.removeLFModifiedRows(lfSelectedRowIndexes);
-                this.eventAggregator.publish('showNotification', { message: 'Please continue to edit the fabric name and color of the roller blinds.' });
-            }
-            this.uiService.setActiveEditMode(null);
-            this.uiService.clearLFSelection();
-        } else {
-            this.uiService.setActiveEditMode('K2_LF_DELETE_SELECT');
-            this.eventAggregator.publish('showNotification', { message: 'Please select the roller blinds for which you want to cancel the Light-Filter fabric setting. After selection, click the LF-Del button again.' });
-        }
-        this.publish();
+        // To be moved to k2-view
     }
     
     handleToggleK3EditMode() {
-        const currentMode = this.uiService.getState().activeEditMode;
-        const newMode = currentMode === 'K3' ? null : 'K3';
-        this.uiService.setActiveEditMode(newMode);
-        this.publish();
+        // To be moved to k3-view
     }
 
     handleBatchCycle({ column }) {
-        const items = this.quoteService.getItems();
-        if (items.length === 0 || !items[0]) return;
-
-        const BATCH_CYCLE_SEQUENCES = {
-            over: ['O', ''],
-            oi: ['IN', 'OUT'],
-            lr: ['L', 'R']
-        };
-        const sequence = BATCH_CYCLE_SEQUENCES[column];
-        if (!sequence) return;
-        
-        const firstItemValue = items[0][column] || '';
-        const currentIndex = sequence.indexOf(firstItemValue);
-        const nextIndex = (currentIndex === -1) ? 0 : (currentIndex + 1) % sequence.length;
-        const nextValue = sequence[nextIndex];
-        
-        this.quoteService.batchUpdateProperty(column, nextValue);
-        this.publish();
+        // To be moved to k3-view
     }
+
+
 
     initializePanelState() {
         this._updatePanelInputsState();
     }
 
     _updatePanelInputsState() {
-        const { activeEditMode, lfSelectedRowIndexes } = this.uiService.getState();
-        const items = this.quoteService.getItems();
-        const presentTypes = new Set(items.map(item => item.fabricType).filter(Boolean));
-        
-        const allPanelInputs = document.querySelectorAll('.panel-input');
-        let firstEnabledInput = null;
-        
-        if (activeEditMode === 'K2') {
-            allPanelInputs.forEach(input => {
-                const type = input.dataset.type;
-                const field = input.dataset.field;
-
-                if (type !== 'LF') {
-                    const isEnabled = presentTypes.has(type);
-                    input.disabled = !isEnabled;
-
-                    if (isEnabled) {
-                        if (!firstEnabledInput) {
-                            firstEnabledInput = input;
-                        }
-                        // [FIX] Correctly find item with existing data, even if it's an empty string
-                        const itemWithData = items.find(item => item.fabricType === type && typeof item[field] === 'string');
-                        input.value = itemWithData ? itemWithData[field] : '';
-                    }
-                } else {
-                    input.disabled = true;
-                }
-            });
-
-            if (firstEnabledInput) {
-                setTimeout(() => {
-                    firstEnabledInput.focus();
-                    firstEnabledInput.select();
-                }, 50); // Use a slightly safer timeout
-            }
-        } else if (activeEditMode === 'K2_LF_SELECT') {
-            allPanelInputs.forEach(input => {
-                const isLFRow = input.dataset.type === 'LF';
-                const hasSelection = lfSelectedRowIndexes.size > 0;
-                input.disabled = !(isLFRow && hasSelection);
-            });
-            const firstEnabledInput = document.querySelector('.panel-input:not([disabled])');
-            if (firstEnabledInput) {
-                setTimeout(() => {
-                    firstEnabledInput.focus();
-                    firstEnabledInput.select();
-                }, 50);
-            }
-        } else {
-             allPanelInputs.forEach(input => {
-                input.disabled = true;
-                input.value = '';
-            });
-        }
+        // To be moved to k2-view
     }
 }

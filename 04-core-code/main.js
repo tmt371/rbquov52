@@ -17,6 +17,7 @@ import { UIService } from './services/ui-service.js';
 
 import { QuickQuoteView } from './ui/views/quick-quote-view.js';
 import { DetailConfigView } from './ui/views/detail-config-view.js';
+import { K1LocationView } from './ui/views/k1-location-view.js'; // [REFACTOR] Import the new sub-view
 
 
 const AUTOSAVE_STORAGE_KEY = 'quoteAutoSaveData';
@@ -76,12 +77,20 @@ class App {
             publishStateChangeCallback
         });
 
+        // [REFACTOR] Instantiate the sub-view first
+        const k1LocationView = new K1LocationView({
+            quoteService,
+            uiService,
+            publishStateChangeCallback
+        });
+
         const detailConfigView = new DetailConfigView({
             quoteService,
             uiService,
-            calculationService, // [FIX] Pass the calculationService instance
+            calculationService,
             eventAggregator: this.eventAggregator,
-            publishStateChangeCallback
+            publishStateChangeCallback,
+            k1LocationView: k1LocationView // [REFACTOR] Inject the sub-view instance
         });
         
         this.appController = new AppController({
@@ -96,7 +105,6 @@ class App {
         // UIManager and InputHandler are instantiated after HTML is loaded
     }
 
-    // --- [NEW] Method to load HTML partials ---
     async _loadPartials() {
         try {
             const response = await fetch('./04-core-code/ui/partials/left-panel.html');
@@ -116,7 +124,6 @@ class App {
         
         await this._loadPartials(); // Load HTML first
 
-        // Now that HTML is loaded, we can instantiate the components that depend on it.
         this.inputHandler = new InputHandler(this.eventAggregator);
         this.uiManager = new UIManager(
             document.getElementById('app'), 
