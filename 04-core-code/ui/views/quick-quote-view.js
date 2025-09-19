@@ -4,7 +4,17 @@
  * @fileoverview View module responsible for all logic related to the Quick Quote screen.
  */
 export class QuickQuoteView {
-    constructor({ quoteService, calculationService, focusService, fileService, uiService, eventAggregator, productFactory, publishStateChangeCallback }) {
+    constructor({ 
+        quoteService, 
+        calculationService, 
+        focusService, 
+        fileService, 
+        uiService, 
+        eventAggregator, 
+        productFactory, 
+        publishStateChangeCallback,
+        quickQuoteFileHandler // [REFACTOR] Inject the new file handler
+    }) {
         this.quoteService = quoteService;
         this.calculationService = calculationService;
         this.focusService = focusService;
@@ -13,6 +23,7 @@ export class QuickQuoteView {
         this.eventAggregator = eventAggregator;
         this.productFactory = productFactory;
         this.publish = publishStateChangeCallback;
+        this.fileHandler = quickQuoteFileHandler; // [REFACTOR] Store the handler
         this.currentProduct = 'rollerBlind';
     }
 
@@ -84,7 +95,7 @@ export class QuickQuoteView {
         this.eventAggregator.publish('operationSuccessfulAutoHidePanel');
     }
 
-    handleNumericKeyPress({ key }) { // [FIXED] Destructuring the data object
+    handleNumericKeyPress({ key }) { 
         if (!isNaN(parseInt(key))) {
             this.uiService.appendInputValue(key);
         } else if (key === 'DEL') {
@@ -118,19 +129,15 @@ export class QuickQuoteView {
         this.focusService.focusAfterCommit();
         this.publish();
     }
-
+    
+    // [REFACTOR] Delegate to fileHandler
     handleSaveToFile() {
-        const quoteData = this.quoteService.getQuoteData();
-        const result = this.fileService.saveToJson(quoteData);
-        const notificationType = result.success ? 'info' : 'error';
-        this.eventAggregator.publish('showNotification', { message: result.message, type: notificationType });
+        this.fileHandler.handleSaveToFile();
     }
 
+    // [REFACTOR] Delegate to fileHandler
     handleExportCSV() {
-        const quoteData = this.quoteService.getQuoteData();
-        const result = this.fileService.exportToCsv(quoteData);
-        const notificationType = result.success ? 'info' : 'error';
-        this.eventAggregator.publish('showNotification', { message: result.message, type: notificationType });
+        this.fileHandler.handleExportCSV();
     }
     
     handleReset(initialUIState) {
@@ -155,7 +162,7 @@ export class QuickQuoteView {
         this.publish();
     }
     
-    handleMoveActiveCell({ direction }) { // [FIXED] Destructuring the data object
+    handleMoveActiveCell({ direction }) { 
         this.focusService.moveActiveCell(direction);
         this.publish();
     }
@@ -218,8 +225,8 @@ export class QuickQuoteView {
         this.publish();
     }
 
+    // [REFACTOR] Delegate to fileHandler
     handleSaveThenLoad() {
-        this.handleSaveToFile();
-        this.eventAggregator.publish('triggerFileLoad');
+        this.fileHandler.handleSaveThenLoad();
     }
 }

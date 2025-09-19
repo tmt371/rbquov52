@@ -132,6 +132,7 @@ export class K2FabricView {
         if (activeEditMode === 'K2_LF_SELECT') {
             this.uiService.setActiveEditMode(null);
             this.uiService.clearLFSelection();
+            this.uiService.clearRowSelection(); // [FIX] Clear the row highlight when exiting mode
             this._updatePanelInputsState();
         } else {
             this.uiService.setActiveEditMode('K2_LF_SELECT');

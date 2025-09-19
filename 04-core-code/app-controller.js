@@ -47,13 +47,11 @@ export class AppController {
 
     _subscribeDetailViewEvents() {
         const delegate = (handlerName, data) => {
-            // Only delegate if the current view is DETAIL_CONFIG
             if (this.uiService.getState().currentView === 'DETAIL_CONFIG') {
                 this.detailConfigView[handlerName](data);
             }
         };
         
-        // This is a special case as it can be triggered from QuickQuoteView as well
         this.eventAggregator.subscribe('tableCellClicked', (data) => {
             const currentView = this.uiService.getState().currentView;
             if (currentView === 'QUICK_QUOTE') {
@@ -71,7 +69,6 @@ export class AppController {
             }
         });
 
-        // Detail Config View Specific Events
         this.eventAggregator.subscribe('userRequestedFocusMode', (data) => delegate('handleFocusModeRequest', data));
         this.eventAggregator.subscribe('panelInputEnterPressed', (data) => delegate('handlePanelInputEnter', data));
         this.eventAggregator.subscribe('panelInputBlurred', (data) => delegate('handlePanelInputBlur', data));
@@ -97,10 +94,8 @@ export class AppController {
         const currentView = this.uiService.getState().currentView;
         if (currentView === 'QUICK_QUOTE') {
             this.uiService.setCurrentView('DETAIL_CONFIG');
-            // Activate the default tab for the detail view
             this.detailConfigView.activateTab('k1-tab'); 
         } else {
-            // This handles toggling back to the quick quote view
             this.uiService.setCurrentView('QUICK_QUOTE');
             this.uiService.setVisibleColumns(initialState.ui.visibleColumns);
             this._publishStateChange();
@@ -134,6 +129,7 @@ export class AppController {
         if (result.success) {
             this.quoteService.quoteData = result.data;
             this.uiService.reset(initialState.ui);
+            this.uiService.setCurrentView('QUICK_QUOTE'); // [FIX] Explicitly set the view after reset
             this.uiService.setSumOutdated(true);
             this._publishStateChange();
             this.eventAggregator.publish('showNotification', { message: result.message });
