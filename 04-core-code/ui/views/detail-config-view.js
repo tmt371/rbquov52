@@ -28,8 +28,9 @@ export class DetailConfigView {
         this.k3View = k3OptionsView;
         this.k4View = k4AccessoriesView;
 
-        // These events are now handled by their respective sub-views
-        // this.eventAggregator.subscribe('k4ModeChanged', (data) => this.handleK4ModeChange(data));
+        // Event subscriptions that will be delegated
+        this.eventAggregator.subscribe('k4ModeChanged', (data) => this.handleK4ModeChange(data));
+        this.eventAggregator.subscribe('k4ChainEnterPressed', (data) => this.handleK4ChainEnterPressed(data));
         
         console.log("DetailConfigView Refactored as a Manager View.");
     }
@@ -41,6 +42,9 @@ export class DetailConfigView {
      * @param {string} tabId The ID of the tab to activate (e.g., 'k1-tab').
      */
     activateTab(tabId) {
+        // [FIX] Set the active tab state FIRST
+        this.uiService.setActiveTab(tabId);
+
         switch (tabId) {
             case 'k1-tab':
                 this.k1View.activate();
@@ -58,12 +62,10 @@ export class DetailConfigView {
             default:
                 break;
         }
+        // [FIX] Trigger a single re-render after all state changes are done
+        this.publish();
     }
     
-    // The events below are now delegated to the specific sub-view that handles them
-    // The AppController will be responsible for routing these events correctly.
-    // (Note: For this refactoring step, we assume AppController will be updated to route these)
-
     handleFocusModeRequest({ column }) {
         if (column === 'location') {
             this.k1View.handleFocusModeRequest();
@@ -80,15 +82,18 @@ export class DetailConfigView {
     }
 
     handlePanelInputBlur({ type, field, value }) {
+        // This is K2 specific
         this.k2View.handlePanelInputBlur({ type, field, value });
     }
 
     handlePanelInputEnter() {
+        // This is K2 specific
         this.k2View.handlePanelInputEnter();
     }
 
     handleSequenceCellClick({ rowIndex }) {
         const { activeEditMode } = this.uiService.getState();
+        // This is K2 specific for now
         if (activeEditMode === 'K2_LF_SELECT' || activeEditMode === 'K2_LF_DELETE_SELECT') {
             this.k2View.handleSequenceCellClick({ rowIndex });
         }
@@ -139,7 +144,6 @@ export class DetailConfigView {
     
     initializePanelState() {
         // This is primarily for K2, so delegate to it.
-        // In a more advanced setup, this could ask the active tab's view to initialize.
         this.k2View._updatePanelInputsState();
     }
 }

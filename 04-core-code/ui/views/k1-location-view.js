@@ -100,6 +100,6 @@ export class K1LocationView {
     activate() {
         // Set the visible columns for the K1 tab
         this.uiService.setVisibleColumns(['sequence', 'fabricTypeDisplay', 'location']);
-        this.publish();
+        // [REFACTOR] The publish call is now centralized in DetailConfigView's activateTab method.
     }
 }
