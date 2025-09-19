@@ -1,10 +1,14 @@
 /* File: style.css */
 
+/* --- [REFACTOR] Import all component style modules --- */
 @import url('./04-core-code/ui/partials/left-panel.css');
 @import url('./04-core-code/ui/css/dialog.css');
 @import url('./04-core-code/ui/css/right-panel.css');
-@import url('./04-core-code/ui/css/virtual-keyboard.css'); /* [REFACTOR] Import keyboard styles */
+@import url('./04-core-code/ui/css/virtual-keyboard.css');
+@import url('./04-core-code/ui/css/results-table.css');
+@import url('./04-core-code/ui/css/toast-notification.css');
 
+/* --- Global Variables --- */
 :root {
     --panel-border-color: #d1d5db;
     --keyboard-bg-color: #f3f4f6;
@@ -15,12 +19,14 @@
     --header-border-color: #696969;
 }
 
+/* --- Base Styles --- */
 html, body {
     height: 100%; margin: 0;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     background-color: #f0f2f5; overflow: hidden;
 }
 
+/* --- App Container Layout --- */
 .app-container {
     display: flex; flex-direction: column;
     height: 100%;
@@ -38,179 +44,7 @@ html, body {
     box-sizing: border-box;
 }
 
-.results-table {
-    width: 100%;
-    border-collapse: collapse;
-    table-layout: fixed;
-    margin-top: 5px;
-}
-
-.results-table thead {
-    position: sticky;
-    top: 0;
-    background-color: var(--app-bg-color);
-    z-index: 10;
-}
-
-.results-table td,
-.results-table th {
-    border: 1px solid #ddd;
-    padding: 8px;
-    text-align: center;
-    word-break: break-all;
-}
-
-.results-table th,
-.input-display-cell {
-    border-top: none;
-    box-shadow: inset 0 6px 0 0 var(--header-border-color);
-}
-
-.results-table .col-sequence { width: 40px; }
-.results-table .col-w { width: auto; }
-.results-table .col-h { width: auto; }
-.results-table .col-type { width: 80px; }
-.results-table .col-price { width: 90px; }
-.results-table .col-location { width: 120px; }
-.results-table .col-fabric { width: 120px; }
-.results-table .col-color { width: 120px; }
-.results-table .col-over,
-.results-table .col-oi,
-.results-table .col-lr {
-    width: 80px;
-}
-.results-table .col-dual,
-.results-table .col-chain {
-    width: 80px;
-}
-
-.results-table td.target-cell {
-    box-shadow: inset 0 0 0 2px black;
-}
-
-.results-table tr.target-row-highlight > td {
-    background-color: #fffacd;
-}
-
-
-.results-table th.input-display-header {
-    padding: 0;
-    border: none;
-    border-left: 1px solid #ddd;
-    border-right: 1px solid #ddd;
-    border-bottom: 1px solid #ddd;
-}
-
-.input-display-cell {
-    background-color: #fffacd;
-    font-size: 1.1em;
-    font-weight: bold;
-    text-align: right;
-    height: 100%;
-    width: 100%;
-    box-sizing: border-box;
-    padding: 8px;
-    border: none;
-}
-
-.results-table td.price-cell {
-    text-align: right;
-    font-size: 0.9em;
-}
-
-.results-table td.active-input-cell {
-    box-shadow: inset 0 0 0 2px var(--primary-color);
-}
-.results-table td.selected-row-highlight {
-    background-color: var(--highlight-color);
-    font-weight: bold;
-}
-
-.results-table td.multi-selected-row {
-    background-color: #f8d7da;
-    font-weight: bold;
-}
-.results-table td.selection-disabled {
-    background-color: #e9ecef;
-    color: #6c757d;
-    cursor: not-allowed;
-}
-
-.type-bo1 { font-weight: bold; font-style: italic; }
-.type-sn { color: var(--medium-blue-color); font-weight: bold; }
-
-/* [REFACTOR] Keyboard panel styles have been moved to /ui/css/virtual-keyboard.css */
-
-#toast-container {
-    position: fixed; top: 20px; right: 20px; z-index: 9999; display: flex;
-    flex-direction: column; align-items: flex-end; gap: 10px;
-}
-.toast-message {
-    background-color: #2c3e50; color: white; padding: 15px 20px; border-radius: 5px;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.15); opacity: 0; transform: translateX(100%);
-    animation: slideInAndFadeOut 4s forwards;
-}
-.toast-message.error { background-color: #c0392b; }
-@keyframes slideInAndFadeOut {
-    0% { opacity: 0; transform: translateX(100%); } 15% { opacity: 1; transform: translateX(0); }
-    85% { opacity: 1; transform: translateX(0); } 100% { opacity: 0; transform: translateX(100%); }
-}
-
-/* --- Responsive Adjustments for Mobile Devices --- */
-@media (max-width: 600px) {
-    /* --- Specific adjustments for Quick Quote View (Table 1) on mobile --- */
-    .app-container:not(.detail-view-active) .results-panel {
-        padding: 0 16px 20px 16px; /* Reduce side padding */
-    }
-
-    .app-container:not(.detail-view-active) .results-table th,
-    .app-container:not(.detail-view-active) .results-table td {
-        padding: 8px 4px; /* Reduce cell horizontal padding */
-    }
-
-    .app-container:not(.detail-view-active) .results-table .col-sequence {
-        width: 18px;
-    }
-    
-    .app-container:not(.detail-view-active) .results-table .col-w,
-    .app-container:not(.detail-view-active) .results-table .col-h {
-        width: 70px;
-    }
-
-    .app-container:not(.detail-view-active) .results-table .col-type {
-        width: 55px;
-    }
-
-    .app-container:not(.detail-view-active) .results-table .col-price {
-        width: 80px;
-    }
-
-
-    /* --- Styles for Detail View (Table 2) on mobile --- */
-    .app-container.detail-view-active .results-table th,
-    .app-container.detail-view-active .results-table td {
-        font-size: 0.72em;
-        padding: 8px 3px;
-    }
-
-    .app-container.detail-view-active .results-table th {
-        font-size: 0.7em;
-    }
-    
-    .app-container.detail-view-active .input-display-cell {
-        font-size: 1em;
-    }
-
-    .app-container.detail-view-active .results-table .col-sequence { width: 29px; }
-    .app-container.detail-view-active .results-table .col-type { width: 50px; }
-    .app-container.detail-view-active .results-table .col-location { width: 102px; }
-    .app-container.detail-view-active .results-table .col-over,
-    .app-container.detail-view-active .results-table .col-oi,
-    .app-container.detail-view-active .results-table .col-lr {
-        width: 47px;
-    }
-    .app-container.detail-view-active .results-table .col-dual,
-    .app-container.detail-view-active .results-table .col-chain {
-        width: 47px;
-    }
-}
+/* [REFACTOR] All component-specific styles below this line have been
+    moved to their respective files in the /ui/css/ directory.
+    This file now only contains global settings and layout.
+*/
