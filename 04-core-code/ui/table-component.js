@@ -33,7 +33,8 @@ export class TableComponent {
             throw new Error("Table element is required for TableComponent.");
         }
         this.tableElement = tableElement;
-        console.log("TableComponent (Dynamic Engine) Initialized.");
+        this.cellRenderers = this._createCellRenderers();
+        console.log("TableComponent (Refactored with Renderer Strategy) Initialized.");
     }
 
     render(state) {
@@ -92,18 +93,27 @@ export class TableComponent {
     }
 
     _renderCellContent(cell, key, item, index, state) {
-        const { activeCell, selectedRowIndex, isMultiDeleteMode, multiDeleteSelectedIndexes, targetCell, lfSelectedRowIndexes, lfModifiedRowIndexes } = state.ui;
+        const { targetCell, lfModifiedRowIndexes } = state.ui;
 
+        // Common logic for all cells
         if (targetCell && index === targetCell.rowIndex && key === targetCell.column) {
             cell.classList.add('target-cell');
         }
-
         if (lfModifiedRowIndexes.has(index) && (key === 'fabric' || key === 'color')) {
             cell.classList.add('is-lf-modified');
         }
 
-        switch (key) {
-            case 'sequence':
+        // Delegate to the specific renderer function
+        const renderer = this.cellRenderers[key] || this.cellRenderers.default;
+        if (renderer) {
+            renderer(cell, item, index, state);
+        }
+    }
+
+    _createCellRenderers() {
+        return {
+            sequence: (cell, item, index, state) => {
+                const { selectedRowIndex, isMultiDeleteMode, multiDeleteSelectedIndexes, lfSelectedRowIndexes } = state.ui;
                 cell.textContent = index + 1;
                 const isLastRowEmpty = (index === state.quoteData.rollerBlindItems.length - 1) && (!item.width && !item.height);
                 
@@ -115,47 +125,42 @@ export class TableComponent {
                 } else if (index === selectedRowIndex) {
                     cell.classList.add('selected-row-highlight');
                 }
-                break;
-            case 'width':
+            },
+            width: (cell, item, index, state) => {
+                const { activeCell } = state.ui;
                 cell.textContent = item.width || '';
                 if (activeCell && index === activeCell.rowIndex && activeCell.column === 'width') cell.classList.add('active-input-cell');
-                break;
-            case 'height':
+            },
+            height: (cell, item, index, state) => {
+                const { activeCell } = state.ui;
                 cell.textContent = item.height || '';
                 if (activeCell && index === activeCell.rowIndex && activeCell.column === 'height') cell.classList.add('active-input-cell');
-                break;
-            case 'TYPE':
+            },
+            TYPE: (cell, item, index, state) => {
+                const { activeCell } = state.ui;
                 cell.textContent = (item.width || item.height) ? (item.fabricType || '') : '';
                 if (item.fabricType === 'BO1') cell.classList.add('type-bo1');
                 else if (item.fabricType === 'SN') cell.classList.add('type-sn');
                 if (activeCell && index === activeCell.rowIndex && activeCell.column === 'TYPE') cell.classList.add('active-input-cell');
-                break;
-            case 'Price':
+            },
+            Price: (cell, item) => {
                 cell.textContent = item.linePrice ? item.linePrice.toFixed(2) : '';
                 cell.classList.add('price-cell');
-                break;
-            case 'location':
-            case 'fabric':
-            case 'color':
-                cell.textContent = item[key] || '';
-                break;
-            case 'over':
-            case 'oi':
-            case 'lr':
-                cell.textContent = item[key] || '';
-                break;
-            case 'fabricTypeDisplay':
+            },
+            fabricTypeDisplay: (cell, item) => {
                 cell.textContent = item.fabricType || '';
                 if (item.fabricType === 'BO1') cell.classList.add('type-bo1');
                 else if (item.fabricType === 'SN') cell.classList.add('type-sn');
-                break;
-            case 'dual':
+            },
+            dual: (cell, item) => {
                 cell.textContent = item.dual || '';
                 cell.classList.toggle('dual-cell-active', item.dual === 'D');
-                break;
-            case 'chain':
-                cell.textContent = item.chain || '';
-                break;
-        }
+            },
+            // Default renderer for simple text properties
+            default: (cell, item, index, state) => {
+                const columnKey = cell.dataset.column;
+                cell.textContent = item[columnKey] || '';
+            }
+        };
     }
 }
