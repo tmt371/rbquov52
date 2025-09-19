@@ -127,13 +127,12 @@ export class AppController {
     _handleFileLoad({ fileName, content }) {
         const result = this.fileService.parseFileContent(fileName, content);
         if (result.success) {
+            // [FIX] Use the new safe loading method in QuoteService
             const loadSuccess = this.quoteService.loadQuoteData(result.data);
             
             if (loadSuccess) {
                 this.uiService.reset(initialState.ui);
-                // [FIX] Explicitly set the view and columns to ensure correct rendering context
                 this.uiService.setCurrentView('QUICK_QUOTE');
-                this.uiService.setVisibleColumns(initialState.ui.visibleColumns);
                 this.uiService.setSumOutdated(true);
                 this._publishStateChange();
                 this.eventAggregator.publish('showNotification', { message: result.message });
