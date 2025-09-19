@@ -65,7 +65,9 @@ export class K2FabricView {
     handlePanelInputBlur({ type, field, value }) {
         const { lfSelectedRowIndexes } = this.uiService.getState();
         
+        // This logic is now primarily for non-LF fields, as LF saving is handled explicitly on Enter.
         if (type === 'LF') {
+           // To be safe, we can trigger a save on blur too.
             const fNameInput = document.querySelector('input[data-type="LF"][data-field="fabric"]');
             const fColorInput = document.querySelector('input[data-type="LF"][data-field="color"]');
             
@@ -90,9 +92,19 @@ export class K2FabricView {
             nextInput.focus();
             nextInput.select();
         } else {
-            this.uiService.setActiveEditMode(null);
-            this._updatePanelInputsState();
-            this.publish();
+            // [FIX] For the last input, explicitly save LF data before exiting the mode.
+            if (activeElement.dataset.type === 'LF' || (activeElement.dataset.type !== 'LF' && this.uiService.getState().activeEditMode === 'K2')) {
+                 const { lfSelectedRowIndexes } = this.uiService.getState();
+                 const fNameInput = document.querySelector('input[data-type="LF"][data-field="fabric"]');
+                 const fColorInput = document.querySelector('input[data-type="LF"][data-field="color"]');
+
+                if (fNameInput && fColorInput && fNameInput.value && fColorInput.value && lfSelectedRowIndexes.size > 0) {
+                    this.quoteService.batchUpdateLFProperties(lfSelectedRowIndexes, fNameInput.value, fColorInput.value);
+                    this.uiService.addLFModifiedRows(lfSelectedRowIndexes);
+                }
+            }
+            
+            this._exitAllK2Modes();
         }
     }
 
@@ -222,6 +234,5 @@ export class K2FabricView {
      */
     activate() {
         this.uiService.setVisibleColumns(['sequence', 'fabricTypeDisplay', 'fabric', 'color']);
-        // [REFACTOR] The publish call is now centralized in DetailConfigView's activateTab method.
     }
 }
