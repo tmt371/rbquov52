@@ -1,7 +1,6 @@
 // File: 04-core-code/app-controller.js
 
 import { initialState } from './config/initial-state.js';
-import { DetailConfigView } from './ui/views/detail-config-view.js';
 
 const AUTOSAVE_STORAGE_KEY = 'quoteAutoSaveData';
 const AUTOSAVE_INTERVAL_MS = 60000;
@@ -17,71 +16,91 @@ export class AppController {
         this.detailConfigView = detailConfigView;
 
         this.autoSaveTimerId = null;
-        console.log("AppController (Refactored as View Manager) Initialized.");
+        console.log("AppController (Refactored with grouped subscriptions) Initialized.");
         this.initialize();
     }
 
     initialize() {
-        const delegateToView = (handlerName, requiresInitialState = false) => (data) => {
-            const currentView = this.uiService.getState().currentView;
-            
-            if (currentView === 'QUICK_QUOTE' && this.quickQuoteView && typeof this.quickQuoteView[handlerName] === 'function') {
-                const args = requiresInitialState ? [initialState.ui] : [data];
-                this.quickQuoteView[handlerName](...args);
-            } else if (currentView === 'DETAIL_CONFIG' && this.detailConfigView && typeof this.detailConfigView[handlerName] === 'function') {
+        this._subscribeQuickQuoteEvents();
+        this._subscribeDetailViewEvents();
+        this._subscribeGlobalEvents();
+        
+        this._startAutoSave();
+    }
+    
+    _subscribeQuickQuoteEvents() {
+        const delegate = (handlerName, ...args) => this.quickQuoteView[handlerName](...args);
+
+        this.eventAggregator.subscribe('numericKeyPressed', (data) => delegate('handleNumericKeyPress', data));
+        this.eventAggregator.subscribe('userRequestedInsertRow', () => delegate('handleInsertRow'));
+        this.eventAggregator.subscribe('userRequestedDeleteRow', () => delegate('handleDeleteRow'));
+        this.eventAggregator.subscribe('userRequestedSave', () => delegate('handleSaveToFile'));
+        this.eventAggregator.subscribe('userRequestedExportCSV', () => delegate('handleExportCSV'));
+        this.eventAggregator.subscribe('userRequestedReset', () => delegate('handleReset', initialState.ui));
+        this.eventAggregator.subscribe('userRequestedClearRow', () => delegate('handleClearRow'));
+        this.eventAggregator.subscribe('userMovedActiveCell', (data) => delegate('handleMoveActiveCell', data));
+        this.eventAggregator.subscribe('userRequestedCycleType', () => delegate('handleCycleType'));
+        this.eventAggregator.subscribe('userRequestedCalculateAndSum', () => delegate('handleCalculateAndSum'));
+        this.eventAggregator.subscribe('userRequestedMultiDeleteMode', () => delegate('handleToggleMultiDeleteMode'));
+        this.eventAggregator.subscribe('userChoseSaveThenLoad', () => delegate('handleSaveThenLoad'));
+    }
+
+    _subscribeDetailViewEvents() {
+        const delegate = (handlerName, data) => {
+            // Only delegate if the current view is DETAIL_CONFIG
+            if (this.uiService.getState().currentView === 'DETAIL_CONFIG') {
                 this.detailConfigView[handlerName](data);
             }
         };
+        
+        // This is a special case as it can be triggered from QuickQuoteView as well
+        this.eventAggregator.subscribe('tableCellClicked', (data) => {
+            const currentView = this.uiService.getState().currentView;
+            if (currentView === 'QUICK_QUOTE') {
+                this.quickQuoteView.handleTableCellClick(data);
+            } else {
+                this.detailConfigView.handleTableCellClick(data);
+            }
+        });
+         this.eventAggregator.subscribe('sequenceCellClicked', (data) => {
+            const currentView = this.uiService.getState().currentView;
+            if (currentView === 'QUICK_QUOTE') {
+                this.quickQuoteView.handleSequenceCellClick(data);
+            } else {
+                this.detailConfigView.handleSequenceCellClick(data);
+            }
+        });
 
-        // Quick Quote View Events
-        this.eventAggregator.subscribe('numericKeyPressed', delegateToView('handleNumericKeyPress'));
-        this.eventAggregator.subscribe('tableCellClicked', delegateToView('handleTableCellClick'));
-        this.eventAggregator.subscribe('sequenceCellClicked', delegateToView('handleSequenceCellClick'));
-        this.eventAggregator.subscribe('userRequestedInsertRow', delegateToView('handleInsertRow'));
-        this.eventAggregator.subscribe('userRequestedDeleteRow', delegateToView('handleDeleteRow'));
-        this.eventAggregator.subscribe('userRequestedSave', delegateToView('handleSaveToFile'));
-        this.eventAggregator.subscribe('userRequestedExportCSV', delegateToView('handleExportCSV'));
-        this.eventAggregator.subscribe('userRequestedReset', delegateToView('handleReset', true));
-        this.eventAggregator.subscribe('userRequestedClearRow', delegateToView('handleClearRow'));
-        this.eventAggregator.subscribe('userMovedActiveCell', delegateToView('handleMoveActiveCell'));
-        this.eventAggregator.subscribe('userRequestedCycleType', delegateToView('handleCycleType'));
-        this.eventAggregator.subscribe('userRequestedCalculateAndSum', delegateToView('handleCalculateAndSum'));
-        this.eventAggregator.subscribe('userRequestedMultiDeleteMode', delegateToView('handleToggleMultiDeleteMode'));
-        this.eventAggregator.subscribe('userChoseSaveThenLoad', delegateToView('handleSaveThenLoad'));
+        // Detail Config View Specific Events
+        this.eventAggregator.subscribe('userRequestedFocusMode', (data) => delegate('handleFocusModeRequest', data));
+        this.eventAggregator.subscribe('panelInputEnterPressed', (data) => delegate('handlePanelInputEnter', data));
+        this.eventAggregator.subscribe('panelInputBlurred', (data) => delegate('handlePanelInputBlur', data));
+        this.eventAggregator.subscribe('locationInputEnterPressed', (data) => delegate('handleLocationInputEnter', data));
+        this.eventAggregator.subscribe('userRequestedLFEditMode', () => delegate('handleLFEditRequest'));
+        this.eventAggregator.subscribe('userRequestedLFDeleteMode', () => delegate('handleLFDeleteRequest'));
+        this.eventAggregator.subscribe('userToggledK3EditMode', () => delegate('handleToggleK3EditMode'));
+        this.eventAggregator.subscribe('userRequestedBatchCycle', (data) => delegate('handleBatchCycle', data));
+        this.eventAggregator.subscribe('k4ModeChanged', (data) => delegate('handleK4ModeChange', data));
+        this.eventAggregator.subscribe('k4ChainEnterPressed', (data) => delegate('handleK4ChainEnterPressed', data));
+    }
 
-        // Detail Config View Events
-        this.eventAggregator.subscribe('userRequestedFocusMode', delegateToView('handleFocusModeRequest'));
-        this.eventAggregator.subscribe('panelInputEnterPressed', delegateToView('handlePanelInputEnter'));
-        this.eventAggregator.subscribe('panelInputBlurred', delegateToView('handlePanelInputBlur'));
-        this.eventAggregator.subscribe('editableCellBlurred', delegateToView('_handleCellInputBlur'));
-        this.eventAggregator.subscribe('editableCellEnterPressed', delegateToView('_handleCellInputEnter'));
-        this.eventAggregator.subscribe('locationInputEnterPressed', delegateToView('handleLocationInputEnter'));
-        this.eventAggregator.subscribe('userRequestedLFEditMode', delegateToView('handleLFEditRequest'));
-        this.eventAggregator.subscribe('userRequestedLFDeleteMode', delegateToView('handleLFDeleteRequest'));
-        this.eventAggregator.subscribe('userToggledK3EditMode', delegateToView('handleToggleK3EditMode'));
-        this.eventAggregator.subscribe('userRequestedBatchCycle', delegateToView('handleBatchCycle'));
-
-
-        // Global App-Level Events
+    _subscribeGlobalEvents() {
         this.eventAggregator.subscribe('userNavigatedToDetailView', () => this._handleNavigationToDetailView());
         this.eventAggregator.subscribe('userNavigatedToQuickQuoteView', () => this._handleNavigationToQuickQuoteView());
         this.eventAggregator.subscribe('userSwitchedTab', (data) => this._handleTabSwitch(data));
         this.eventAggregator.subscribe('userRequestedLoad', () => this._handleUserRequestedLoad());
         this.eventAggregator.subscribe('userChoseLoadDirectly', () => this._handleLoadDirectly());
         this.eventAggregator.subscribe('fileLoaded', (data) => this._handleFileLoad(data));
-        
-        this._startAutoSave();
     }
     
     _handleNavigationToDetailView() {
         const currentView = this.uiService.getState().currentView;
         if (currentView === 'QUICK_QUOTE') {
             this.uiService.setCurrentView('DETAIL_CONFIG');
-            if (this.detailConfigView) {
-                this.detailConfigView.initializePanelState();
-            }
-            this._handleTabSwitch({ tabId: 'k1-tab' });
+            // Activate the default tab for the detail view
+            this.detailConfigView.activateTab('k1-tab'); 
         } else {
+            // This handles toggling back to the quick quote view
             this.uiService.setCurrentView('QUICK_QUOTE');
             this.uiService.setVisibleColumns(initialState.ui.visibleColumns);
             this._publishStateChange();
@@ -95,21 +114,7 @@ export class AppController {
     }
 
     _handleTabSwitch({ tabId }) {
-        const TAB_COLUMN_MAP = {
-            'k1-tab': ['sequence', 'fabricTypeDisplay', 'location'],
-            'k2-tab': ['sequence', 'fabricTypeDisplay', 'fabric', 'color'],
-            'k3-tab': ['sequence', 'fabricTypeDisplay', 'location', 'over', 'oi', 'lr'],
-            'k4-tab': ['sequence', 'fabricTypeDisplay', 'location', 'dual', 'chain'],
-            'k5-tab': ['sequence', 'fabricTypeDisplay'],
-        };
-
-        const newColumns = TAB_COLUMN_MAP[tabId];
-
-        if (newColumns) {
-            this.uiService.setActiveTab(tabId);
-            this.uiService.setVisibleColumns(newColumns);
-            this._publishStateChange();
-        }
+        this.detailConfigView.activateTab(tabId);
     }
 
     _handleUserRequestedLoad() {
@@ -129,7 +134,7 @@ export class AppController {
         if (result.success) {
             this.quoteService.quoteData = result.data;
             this.uiService.reset(initialState.ui);
-            this.ui.setSumOutdated(true);
+            this.uiService.setSumOutdated(true);
             this._publishStateChange();
             this.eventAggregator.publish('showNotification', { message: result.message });
         } else {
