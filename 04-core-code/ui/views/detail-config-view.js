@@ -13,7 +13,8 @@ export class DetailConfigView {
         // Sub-views are injected here
         k1LocationView,
         k2FabricView,
-        k3OptionsView
+        k3OptionsView,
+        k4AccessoriesView
     }) {
         this.quoteService = quoteService;
         this.uiService = uiService;
@@ -25,9 +26,10 @@ export class DetailConfigView {
         this.k1View = k1LocationView;
         this.k2View = k2FabricView;
         this.k3View = k3OptionsView;
-        // Future sub-views (k4) will be added here
+        this.k4View = k4AccessoriesView;
 
-        this.eventAggregator.subscribe('k4ModeChanged', (data) => this.handleK4ModeChange(data));
+        // These events are now handled by their respective sub-views
+        // this.eventAggregator.subscribe('k4ModeChanged', (data) => this.handleK4ModeChange(data));
         
         console.log("DetailConfigView Refactored as a Manager View.");
     }
@@ -49,13 +51,19 @@ export class DetailConfigView {
             case 'k3-tab':
                 this.k3View.activate();
                 break;
-            // Future cases for k4, k5 will be added here
+            case 'k4-tab':
+                this.k4View.activate();
+                break;
+            // Future cases for k5 will be added here
             default:
-                // Fallback for tabs not yet refactored
                 break;
         }
     }
     
+    // The events below are now delegated to the specific sub-view that handles them
+    // The AppController will be responsible for routing these events correctly.
+    // (Note: For this refactoring step, we assume AppController will be updated to route these)
+
     handleFocusModeRequest({ column }) {
         if (column === 'location') {
             this.k1View.handleFocusModeRequest();
@@ -81,7 +89,6 @@ export class DetailConfigView {
 
     handleSequenceCellClick({ rowIndex }) {
         const { activeEditMode } = this.uiService.getState();
-
         if (activeEditMode === 'K2_LF_SELECT' || activeEditMode === 'K2_LF_DELETE_SELECT') {
             this.k2View.handleSequenceCellClick({ rowIndex });
         }
@@ -103,6 +110,14 @@ export class DetailConfigView {
         this.k3View.handleBatchCycle({ column });
     }
 
+    handleK4ModeChange({ mode }) {
+        this.k4View.handleK4ModeChange({ mode });
+    }
+
+    handleK4ChainEnterPressed({ value }) {
+        this.k4View.handleK4ChainEnterPressed({ value });
+    }
+
     handleTableCellClick({ rowIndex, column }) {
         const { activeEditMode, k4ActiveMode } = this.uiService.getState();
         
@@ -116,35 +131,15 @@ export class DetailConfigView {
             return;
         }
 
-        const item = this.quoteService.getItems()[rowIndex];
-        if (!item) return;
-
-        // Logic for K4 (to be refactored)
-        if (k4ActiveMode === 'dual' && column === 'dual') {
-            const newValue = item.dual === 'D' ? '' : 'D';
-            this.quoteService.updateItemProperty(rowIndex, 'dual', newValue);
-            this.publish();
-        }
-
-        if (k4ActiveMode === 'chain' && column === 'chain') {
-            // Logic to be moved to k4-view
+        if (k4ActiveMode) {
+            this.k4View.handleTableCellClick({ rowIndex, column });
+            return;
         }
     }
     
-    // --- Logic to be refactored and moved to respective sub-views ---
-    
-    handleK4ModeChange({ mode }) {
-        // This will be moved to k4-view
-    }
-
-    handleK4ChainEnterPressed({ value }) {
-        // This will be moved to k4-view
-    }
-
-    // --- Methods below this line will eventually be moved to their respective sub-views ---
-
     initializePanelState() {
-        // This might become a delegator to the active tab's view
-        this.k2View._updatePanelInputsState(); // Initial state is likely K2 related
+        // This is primarily for K2, so delegate to it.
+        // In a more advanced setup, this could ask the active tab's view to initialize.
+        this.k2View._updatePanelInputsState();
     }
 }
