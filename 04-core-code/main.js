@@ -20,8 +20,7 @@ import { DetailConfigView } from './ui/views/detail-config-view.js';
 import { K1LocationView } from './ui/views/k1-location-view.js';
 import { K2FabricView } from './ui/views/k2-fabric-view.js';
 import { K3OptionsView } from './ui/views/k3-options-view.js';
-import { K4AccessoriesView } from './ui/views/k4-accessories-view.js';
-import { QuickQuoteFileHandler } from './ui/views/quick-quote-file-handler.js'; // [REFACTOR] Import the new handler
+import { K4AccessoriesView } from './ui/views/k4-accessories-view.js'; // [REFACTOR] Import the new sub-view
 
 
 const AUTOSAVE_STORAGE_KEY = 'quoteAutoSaveData';
@@ -70,13 +69,6 @@ class App {
 
         const publishStateChangeCallback = () => this.eventAggregator.publish('stateChanged', this.appController._getFullState());
 
-        // [REFACTOR] Instantiate the sub-handler for QuickQuoteView
-        const quickQuoteFileHandler = new QuickQuoteFileHandler({
-            quoteService,
-            fileService,
-            eventAggregator: this.eventAggregator
-        });
-
         const quickQuoteView = new QuickQuoteView({
             quoteService,
             calculationService,
@@ -85,11 +77,10 @@ class App {
             uiService,
             eventAggregator: this.eventAggregator,
             productFactory,
-            publishStateChangeCallback,
-            quickQuoteFileHandler: quickQuoteFileHandler // [REFACTOR] Inject the handler
+            publishStateChangeCallback
         });
 
-        // [REFACTOR] Instantiate the sub-views for DetailConfigView
+        // [REFACTOR] Instantiate the sub-views first
         const k1LocationView = new K1LocationView({
             quoteService,
             uiService,
@@ -126,7 +117,7 @@ class App {
             k1LocationView: k1LocationView,
             k2FabricView: k2FabricView,
             k3OptionsView: k3OptionsView,
-            k4AccessoriesView: k4AccessoriesView
+            k4AccessoriesView: k4AccessoriesView // [REFACTOR] Inject the sub-view instance
         });
         
         this.appController = new AppController({
