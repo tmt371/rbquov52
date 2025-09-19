@@ -13,18 +13,6 @@ export class K2FabricView {
     }
 
     /**
-     * [REFACTOR] Centralized cleanup function for all K2 modes.
-     * @private
-     */
-    _exitAllK2Modes() {
-        this.uiService.setActiveEditMode(null);
-        this.uiService.clearRowSelection();
-        this.uiService.clearLFSelection();
-        this._updatePanelInputsState(); // This ensures panel inputs are correctly disabled
-        this.publish();
-    }
-
-    /**
      * Handles the request to enter or exit the Fabric & Color editing mode.
      */
     handleFocusModeRequest() {
@@ -50,7 +38,9 @@ export class K2FabricView {
                 this._enterFCMode(false);
             }
         } else {
-            this._exitAllK2Modes();
+            this.uiService.setActiveEditMode(null);
+            this._updatePanelInputsState();
+            this.publish();
         }
     }
 
@@ -102,6 +92,7 @@ export class K2FabricView {
             nextInput.focus();
             nextInput.select();
         } else {
+            activeElement.blur();
             this.uiService.setActiveEditMode(null);
             this._updatePanelInputsState();
             this.publish();
@@ -139,12 +130,15 @@ export class K2FabricView {
         const { activeEditMode } = this.uiService.getState();
         
         if (activeEditMode === 'K2_LF_SELECT') {
-            this._exitAllK2Modes();
+            this.uiService.setActiveEditMode(null);
+            this.uiService.clearLFSelection();
+            this.uiService.clearRowSelection(); // [FIX] Clear the row highlight when exiting mode
+            this._updatePanelInputsState();
         } else {
             this.uiService.setActiveEditMode('K2_LF_SELECT');
             this.eventAggregator.publish('showNotification', { message: 'Please select the items with TYPE \'BO1\' to edit the fabric name and color settings for the roller blinds.' });
-            this.publish();
         }
+        this.publish();
     }
 
     handleLFDeleteRequest() {
@@ -155,14 +149,15 @@ export class K2FabricView {
             if (lfSelectedRowIndexes.size > 0) {
                 this.quoteService.removeLFProperties(lfSelectedRowIndexes);
                 this.uiService.removeLFModifiedRows(lfSelectedRowIndexes);
-                this.eventAggregator.publish('showNotification', { message: 'Light-Filter settings have been cleared.' });
+                this.eventAggregator.publish('showNotification', { message: 'Please continue to edit the fabric name and color of the roller blinds.' });
             }
-            this._exitAllK2Modes();
+            this.uiService.setActiveEditMode(null);
+            this.uiService.clearLFSelection();
         } else {
             this.uiService.setActiveEditMode('K2_LF_DELETE_SELECT');
             this.eventAggregator.publish('showNotification', { message: 'Please select the roller blinds for which you want to cancel the Light-Filter fabric setting. After selection, click the LF-Del button again.' });
-            this.publish();
         }
+        this.publish();
     }
 
     _updatePanelInputsState() {

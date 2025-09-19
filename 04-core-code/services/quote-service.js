@@ -27,22 +27,6 @@ export class QuoteService {
         return this.quoteData[this.itemListName];
     }
     
-    /**
-     * [NEW] Safely loads new quote data and ensures its integrity.
-     * @param {object} newData The new quoteData object to load.
-     * @returns {boolean} True if the load was successful, false otherwise.
-     */
-    loadQuoteData(newData) {
-        if (newData && newData[this.itemListName] && Array.isArray(newData[this.itemListName])) {
-            this.quoteData = newData;
-            // Immediately run consolidation logic to ensure data integrity
-            this.consolidateEmptyRows();
-            return true;
-        }
-        console.error("Failed to load quote data due to invalid format.", newData);
-        return false;
-    }
-
     _getItems() {
         return this.quoteData[this.itemListName];
     }
@@ -119,21 +103,22 @@ export class QuoteService {
         return false;
     }
     
-    toggleDualProperty(rowIndex) {
-        const items = this._getItems();
-        const currentItem = items[rowIndex];
-        if (!currentItem) return false;
+    cycleItemProperty(rowIndex, property, options) {
+        const item = this._getItems()[rowIndex];
+        if (!item) return false;
 
-        const newValue = currentItem.dual === 'D' ? '' : 'D';
-        currentItem.dual = newValue;
+        const currentValue = item[property];
+        const currentIndex = options.indexOf(currentValue);
+        const nextIndex = (currentIndex + 1) % options.length;
+        const nextValue = options[nextIndex];
 
-        const nextItem = items[rowIndex + 1];
-        if (nextItem) {
-            nextItem.dual = newValue;
+        if (item[property] !== nextValue) {
+            item[property] = nextValue;
+            return true;
         }
-        return true;
+        return false;
     }
-    
+
     cycleK3Property(rowIndex, column) {
         const item = this._getItems()[rowIndex];
         if (!item) return false;

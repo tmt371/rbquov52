@@ -127,18 +127,12 @@ export class AppController {
     _handleFileLoad({ fileName, content }) {
         const result = this.fileService.parseFileContent(fileName, content);
         if (result.success) {
-            // [FIX] Use the new safe loading method in QuoteService
-            const loadSuccess = this.quoteService.loadQuoteData(result.data);
-            
-            if (loadSuccess) {
-                this.uiService.reset(initialState.ui);
-                this.uiService.setCurrentView('QUICK_QUOTE');
-                this.uiService.setSumOutdated(true);
-                this._publishStateChange();
-                this.eventAggregator.publish('showNotification', { message: result.message });
-            } else {
-                this.eventAggregator.publish('showNotification', { message: 'Error: Could not process the loaded data.', type: 'error' });
-            }
+            this.quoteService.quoteData = result.data;
+            this.uiService.reset(initialState.ui);
+            this.uiService.setCurrentView('QUICK_QUOTE'); // [FIX] Explicitly set the view after reset
+            this.uiService.setSumOutdated(true);
+            this._publishStateChange();
+            this.eventAggregator.publish('showNotification', { message: result.message });
         } else {
             this.eventAggregator.publish('showNotification', { message: result.message, type: 'error' });
         }
