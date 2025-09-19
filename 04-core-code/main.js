@@ -17,7 +17,8 @@ import { UIService } from './services/ui-service.js';
 
 import { QuickQuoteView } from './ui/views/quick-quote-view.js';
 import { DetailConfigView } from './ui/views/detail-config-view.js';
-import { K1LocationView } from './ui/views/k1-location-view.js'; // [REFACTOR] Import the new sub-view
+import { K1LocationView } from './ui/views/k1-location-view.js';
+import { K2FabricView } from './ui/views/k2-fabric-view.js'; // [REFACTOR] Import the new sub-view
 
 
 const AUTOSAVE_STORAGE_KEY = 'quoteAutoSaveData';
@@ -77,10 +78,17 @@ class App {
             publishStateChangeCallback
         });
 
-        // [REFACTOR] Instantiate the sub-view first
+        // [REFACTOR] Instantiate the sub-views first
         const k1LocationView = new K1LocationView({
             quoteService,
             uiService,
+            publishStateChangeCallback
+        });
+
+        const k2FabricView = new K2FabricView({
+            quoteService,
+            uiService,
+            eventAggregator: this.eventAggregator,
             publishStateChangeCallback
         });
 
@@ -90,7 +98,8 @@ class App {
             calculationService,
             eventAggregator: this.eventAggregator,
             publishStateChangeCallback,
-            k1LocationView: k1LocationView // [REFACTOR] Inject the sub-view instance
+            k1LocationView: k1LocationView,
+            k2FabricView: k2FabricView // [REFACTOR] Inject the sub-view instance
         });
         
         this.appController = new AppController({

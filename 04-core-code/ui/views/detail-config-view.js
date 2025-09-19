@@ -11,7 +11,8 @@ export class DetailConfigView {
         eventAggregator, 
         publishStateChangeCallback,
         // Sub-views are injected here
-        k1LocationView 
+        k1LocationView,
+        k2FabricView
     }) {
         this.quoteService = quoteService;
         this.uiService = uiService;
@@ -21,11 +22,10 @@ export class DetailConfigView {
 
         // Store instances of sub-views
         this.k1View = k1LocationView;
-        // Future sub-views (k2, k3, k4) will be added here
+        this.k2View = k2FabricView;
+        // Future sub-views (k3, k4) will be added here
 
         this.eventAggregator.subscribe('k4ModeChanged', (data) => this.handleK4ModeChange(data));
-        // The subscription for 'k4ChainEnterPressed' is removed as it will be handled by the future K4 sub-view
-        // The subscription for 'numericKeyPressed' is also removed for the same reason
         
         console.log("DetailConfigView Refactored as a Manager View.");
     }
@@ -41,7 +41,10 @@ export class DetailConfigView {
             case 'k1-tab':
                 this.k1View.activate();
                 break;
-            // Future cases for k2, k3, k4, k5 will be added here
+            case 'k2-tab':
+                this.k2View.activate();
+                break;
+            // Future cases for k3, k4, k5 will be added here
             default:
                 // Fallback for tabs not yet refactored
                 break;
@@ -49,52 +52,52 @@ export class DetailConfigView {
     }
     
     handleFocusModeRequest({ column }) {
-        // Delegate to the appropriate sub-view based on the column
         if (column === 'location') {
             this.k1View.handleFocusModeRequest();
             return;
         }
-
-        // Logic for K2 (to be refactored)
-        const currentMode = this.uiService.getState().activeEditMode;
         if (column === 'fabric') {
-            const newMode = currentMode === 'K2' ? null : 'K2';
-
-            if (newMode) {
-                const items = this.quoteService.getItems();
-                const { lfModifiedRowIndexes } = this.uiService.getState();
-                const hasConflict = items.some((item, index) => 
-                    item.fabricType === 'BO1' && lfModifiedRowIndexes.has(index)
-                );
-
-                if (hasConflict) {
-                    this.eventAggregator.publish('showConfirmationDialog', {
-                        message: 'Some BO1 items have Light-Filter settings. Continuing will overwrite this data. Proceed?',
-                        buttons: [
-                            { text: 'OK', callback: () => this._enterFCMode(true) },
-                            { text: 'Cancel', className: 'secondary', callback: () => {} }
-                        ]
-                    });
-                } else {
-                    this._enterFCMode(false);
-                }
-            } else {
-                this.uiService.setActiveEditMode(null);
-                this._updatePanelInputsState();
-                this.publish();
-            }
-        } 
+            this.k2View.handleFocusModeRequest();
+            return;
+        }
     }
     
     handleLocationInputEnter({ value }) {
-        // This event is specific to K1, so we delegate it directly.
         this.k1View.handleLocationInputEnter({ value });
+    }
+
+    handlePanelInputBlur({ type, field, value }) {
+        this.k2View.handlePanelInputBlur({ type, field, value });
+    }
+
+    handlePanelInputEnter() {
+        this.k2View.handlePanelInputEnter();
+    }
+
+    handleSequenceCellClick({ rowIndex }) {
+        const { activeEditMode } = this.uiService.getState();
+
+        if (activeEditMode === 'K1') {
+            // This is handled by handleTableCellClick for K1
+            return;
+        }
+
+        if (activeEditMode === 'K2_LF_SELECT' || activeEditMode === 'K2_LF_DELETE_SELECT') {
+            this.k2View.handleSequenceCellClick({ rowIndex });
+        }
+    }
+
+    handleLFEditRequest() {
+        this.k2View.handleLFEditRequest();
+    }
+
+    handleLFDeleteRequest() {
+        this.k2View.handleLFDeleteRequest();
     }
     
     handleTableCellClick({ rowIndex, column }) {
         const { activeEditMode, k4ActiveMode } = this.uiService.getState();
         
-        // Delegate to K1 sub-view if K1 mode is active
         if (activeEditMode === 'K1') {
             this.k1View.handleTableCellClick({ rowIndex });
             return;
@@ -138,30 +141,6 @@ export class DetailConfigView {
     }
 
     // --- Methods below this line will eventually be moved to their respective sub-views ---
-
-    _enterFCMode(isOverwriting) {
-        // To be moved to k2-view
-    }
-
-    handlePanelInputBlur({ type, field, value }) {
-        // To be moved to k2-view
-    }
-
-    handlePanelInputEnter() {
-        // To be moved to k2-view
-    }
-
-    handleSequenceCellClick({ rowIndex }) {
-        // To be moved to k2-view
-    }
-    
-    handleLFEditRequest() {
-        // To be moved to k2-view
-    }
-
-    handleLFDeleteRequest() {
-        // To be moved to k2-view
-    }
     
     handleToggleK3EditMode() {
         // To be moved to k3-view
@@ -171,13 +150,8 @@ export class DetailConfigView {
         // To be moved to k3-view
     }
 
-
-
     initializePanelState() {
-        this._updatePanelInputsState();
-    }
-
-    _updatePanelInputsState() {
-        // To be moved to k2-view
+        // This might become a delegator to the active tab's view
+        this.k2View._updatePanelInputsState(); // Initial state is likely K2 related
     }
 }
